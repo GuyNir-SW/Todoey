@@ -7,21 +7,58 @@
 //
 
 import UIKit
+class Item : Codable {
+    // Properties
+    var name : String = ""
+    var isSelected : Bool = false
+    
+    /*
+    // Methods
+    override init()     {
+        name = ""
+        isSelected = false
+    }
+    
+    init(json: [String: Any])
+    {
+        self.name = json["name"] as! String
+        self.isSelected = json["isSelected"] as! Bool
+    }
+    
+    
+    func encode(with aCoder: NSCoder) {
+        
+        aCoder.encode(self.name, forKey: "name")
+        aCoder.encode(self.isSelected, forKey: "isSelected")
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        self.name = aDecoder.decodeObject(forKey: "name") as! String
+        self.isSelected = aDecoder.decodeObject(forKey: "isSelected") as! Bool
+    }
+    */
+    
+}
 
 class TodoListViewController: UITableViewController {
 
     //MARK: Properties
-    var itemArray : [String] = ["AAA", "BBB", "CCC" ]
-    let itemArrayKey = "itemArray"  // Const name for persist data
-    let defaults = UserDefaults.standard
+    var itemArray : [Item] = []
+    
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    
     
     //
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        print(dataFilePath)
+        
         // Do any additional setup after loading the view.
-        if let tempArray = defaults.array(forKey: itemArrayKey) as? [String] {
-            itemArray = tempArray
-        }
+        loadItems()
+        
+        
+    
     }
     
     // Mark: Tableview Datasource methods
@@ -31,7 +68,9 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
+        let item = itemArray[indexPath.row]
+        cell.textLabel?.text = item.name
+        cell.accessoryType = item.isSelected ? .checkmark : .none
         
         return cell
     
@@ -40,14 +79,19 @@ class TodoListViewController: UITableViewController {
     //MARK: TableView delegate methods
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print("Row: " + String(indexPath.row) + " Item: " + itemArray[indexPath.row])
+        print("Row: " + String(indexPath.row) + " Item: " + itemArray[indexPath.row].name)
         
-        if (tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark) {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        let item = itemArray[indexPath.row]
+        item.isSelected = !item.isSelected
+        
+        // Selection is a single click, so automatically deselect
         tableView.deselectRow(at: indexPath, animated: true)
+        
+        // Save the new change
+        self.saveItems()
+        
+        // Make sure ui is updated
+        self.tableView.reloadData()
         
     }
     
@@ -66,8 +110,15 @@ class TodoListViewController: UITableViewController {
             print ("Success")
             print(String(helperTextField.text!))
             
-            self.itemArray.append(String(helperTextField.text!))
-            self.defaults.set(self.itemArray, forKey: self.itemArrayKey)
+            let item : Item = Item()
+            item.name = String(helperTextField.text!)
+            
+            self.itemArray.append(item)
+            
+            // Save data on storage
+            self.saveItems()
+            
+            // Refresh UI
             self.tableView.reloadData()
         }
         alert.addTextField { (textField) in
@@ -81,6 +132,30 @@ class TodoListViewController: UITableViewController {
         
         
         
+    }
+    //MARK: Load & Save
+    func loadItems () {
+        if let data = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print ("Error decoding \(error)")
+            }
+        }
+    }
+    
+    
+    func saveItems () {
+        let encoder = PropertyListEncoder()
+        
+        do {
+            let data = try encoder.encode(self.itemArray)
+            try data.write(to: self.dataFilePath!)
+        }
+        catch {
+            print ("Error saving item: \(error)")
+        }
     }
     
 

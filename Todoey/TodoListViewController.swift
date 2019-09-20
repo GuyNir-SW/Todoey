@@ -12,11 +12,16 @@ class TodoListViewController: UITableViewController {
 
     //MARK: Properties
     var itemArray : [String] = ["AAA", "BBB", "CCC" ]
+    let itemArrayKey = "itemArray"  // Const name for persist data
+    let defaults = UserDefaults.standard
     
     //
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
+        if let tempArray = defaults.array(forKey: itemArrayKey) as? [String] {
+            itemArray = tempArray
+        }
     }
     
     // Mark: Tableview Datasource methods
@@ -62,6 +67,7 @@ class TodoListViewController: UITableViewController {
             print(String(helperTextField.text!))
             
             self.itemArray.append(String(helperTextField.text!))
+            self.defaults.set(self.itemArray, forKey: self.itemArrayKey)
             self.tableView.reloadData()
         }
         alert.addTextField { (textField) in

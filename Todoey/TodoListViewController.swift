@@ -7,12 +7,15 @@
 //
 
 import UIKit
+import CoreData
+
+/*
 class Item : Codable {
     // Properties
     var name : String = ""
     var isSelected : Bool = false
     
-    /*
+    
     // Methods
     override init()     {
         name = ""
@@ -36,9 +39,10 @@ class Item : Codable {
         self.name = aDecoder.decodeObject(forKey: "name") as! String
         self.isSelected = aDecoder.decodeObject(forKey: "isSelected") as! Bool
     }
-    */
+ 
     
 }
+ */
 
 class TodoListViewController: UITableViewController {
 
@@ -47,6 +51,7 @@ class TodoListViewController: UITableViewController {
     
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     //
     override func viewDidLoad() {
@@ -79,7 +84,7 @@ class TodoListViewController: UITableViewController {
     //MARK: TableView delegate methods
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print("Row: " + String(indexPath.row) + " Item: " + itemArray[indexPath.row].name)
+        print("Row: " + String(indexPath.row) + " Item: " + itemArray[indexPath.row].name!)
         
         let item = itemArray[indexPath.row]
         item.isSelected = !item.isSelected
@@ -110,8 +115,11 @@ class TodoListViewController: UITableViewController {
             print ("Success")
             print(String(helperTextField.text!))
             
-            let item : Item = Item()
+            
+            
+            let item = Item(context: self.context)
             item.name = String(helperTextField.text!)
+            item.isSelected = false
             
             self.itemArray.append(item)
             
@@ -134,30 +142,81 @@ class TodoListViewController: UITableViewController {
         
     }
     //MARK: Load & Save
-    func loadItems () {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print ("Error decoding \(error)")
-            }
+    
+    func loadItems (with request : NSFetchRequest<Item> = Item.fetchRequest()) {
+        
+        do {
+            itemArray = try context.fetch(request)
+        } catch {
+            print ("Error loading items: \(error)")
         }
+        
+        tableView.reloadData()
     }
+ 
     
     
     func saveItems () {
-        let encoder = PropertyListEncoder()
+        
         
         do {
-            let data = try encoder.encode(self.itemArray)
-            try data.write(to: self.dataFilePath!)
+            try context.save()
         }
         catch {
             print ("Error saving item: \(error)")
         }
     }
     
+    
+    
+
+}
+
+
+//MARK: Search bar methods
+extension TodoListViewController: UISearchBarDelegate {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        
+        // Check for empty search
+        if ((searchBar.text == nil) || (searchBar.text! == "" )) {
+            loadItems ()
+        }
+        else {
+            let request : NSFetchRequest<Item> = Item.fetchRequest()
+            
+            let predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchBar.text!)
+            
+            request.predicate = predicate
+            
+            let sortDescriptor = NSSortDescriptor(key: "name", ascending: true)
+            
+            request.sortDescriptors = [sortDescriptor]
+            loadItems(with: request)
+        }
+        
+        
+        
+        print (searchBar.text!)
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        print ("Search change trigger, new value: " + searchBar.text!)
+        
+        if (searchBar.text?.count == 0) {
+            loadItems()
+            
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+        }
+    }
+    
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        // It is like an empty search
+        print ("Cancel was clicked")
+        loadItems()
+    }
 
 }
 

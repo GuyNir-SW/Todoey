@@ -48,6 +48,11 @@ class TodoListViewController: UITableViewController {
 
     //MARK: Properties
     var itemArray : [Item] = []
+    var selectedCategory : Category? {
+        didSet {
+            loadItems()
+        }
+    }
     
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
@@ -60,7 +65,7 @@ class TodoListViewController: UITableViewController {
         print(dataFilePath)
         
         // Do any additional setup after loading the view.
-        loadItems()
+        //loadItems()
         
         
     
@@ -120,6 +125,7 @@ class TodoListViewController: UITableViewController {
             let item = Item(context: self.context)
             item.name = String(helperTextField.text!)
             item.isSelected = false
+            item.parentCategory = self.selectedCategory
             
             self.itemArray.append(item)
             
@@ -144,6 +150,16 @@ class TodoListViewController: UITableViewController {
     //MARK: Load & Save
     
     func loadItems (with request : NSFetchRequest<Item> = Item.fetchRequest()) {
+        
+        // Add predicate for category, combine it with the previous one if already exist.
+        let predicateCategory = NSPredicate(format: "parentCategory.name MATCHES %@", self.selectedCategory!.name!)
+        
+        if (request.predicate == nil) {
+            request.predicate = predicateCategory
+        } else {
+            let compound = NSCompoundPredicate(andPredicateWithSubpredicates: [request.predicate!, predicateCategory])
+            request.predicate = compound
+        }
         
         do {
             itemArray = try context.fetch(request)

@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreData
+import RealmSwift
 
 /*
 class Item : Codable {
@@ -47,22 +48,20 @@ class Item : Codable {
 class TodoListViewController: UITableViewController {
 
     //MARK: Properties
-    var itemArray : [Item] = []
+    let realm = try! Realm()
+    
+    var itemArray : Results<Item>?
     var selectedCategory : Category? {
         didSet {
             loadItems()
         }
     }
-    
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     
     //
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        print(dataFilePath)
         
         // Do any additional setup after loading the view.
         //loadItems()
@@ -73,14 +72,15 @@ class TodoListViewController: UITableViewController {
     
     // Mark: Tableview Datasource methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return itemArray.count
+        return itemArray?.count ?? 0
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-        let item = itemArray[indexPath.row]
-        cell.textLabel?.text = item.name
-        cell.accessoryType = item.isSelected ? .checkmark : .none
+        if let item = itemArray?[indexPath.row] {
+            cell.textLabel?.text = item.name
+            cell.accessoryType = item.isSelected ? .checkmark : .none
+        }
         
         return cell
     
@@ -89,16 +89,22 @@ class TodoListViewController: UITableViewController {
     //MARK: TableView delegate methods
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print("Row: " + String(indexPath.row) + " Item: " + itemArray[indexPath.row].name!)
         
-        let item = itemArray[indexPath.row]
-        item.isSelected = !item.isSelected
+        
+        if let item = itemArray?[indexPath.row] {
+            print("Row: " + String(indexPath.row) + " Item: " + item.name)
+            do {
+                try realm.write {
+                    item.isSelected = !item.isSelected
+                }
+            } catch {
+                 print ("Error saving item: \(error)")
+            }
+            
+        }
         
         // Selection is a single click, so automatically deselect
         tableView.deselectRow(at: indexPath, animated: true)
-        
-        // Save the new change
-        self.saveItems()
         
         // Make sure ui is updated
         self.tableView.reloadData()
@@ -121,16 +127,21 @@ class TodoListViewController: UITableViewController {
             print(String(helperTextField.text!))
             
             
-            
-            let item = Item(context: self.context)
-            item.name = String(helperTextField.text!)
-            item.isSelected = false
-            item.parentCategory = self.selectedCategory
-            
-            self.itemArray.append(item)
-            
-            // Save data on storage
-            self.saveItems()
+            // Add only if we have a category
+            if let parentCategory = self.selectedCategory {
+                do {
+                    try self.realm.write {
+                        let item = Item()
+                        item.name = String(helperTextField.text!)
+                        item.isSelected = false
+                        parentCategory.items.append(item)
+                    }
+                }
+                catch {
+                    print ("Error saving item: \(error)")
+                }
+                
+            }
             
             // Refresh UI
             self.tableView.reloadData()
@@ -148,7 +159,12 @@ class TodoListViewController: UITableViewController {
         
     }
     //MARK: Load & Save
+    func loadItems() {
+        itemArray = selectedCategory?.items.sorted(byKeyPath: "name")
+        self.tableView.reloadData()
+    }
     
+    /*
     func loadItems (with request : NSFetchRequest<Item> = Item.fetchRequest()) {
         
         // Add predicate for category, combine it with the previous one if already exist.
@@ -169,14 +185,17 @@ class TodoListViewController: UITableViewController {
         
         tableView.reloadData()
     }
+ */
  
     
     
-    func saveItems () {
+    func saveNewItem (item : Item) {
         
         
         do {
-            try context.save()
+            try realm.write {
+                realm.add(item)
+            }
         }
         catch {
             print ("Error saving item: \(error)")
@@ -194,23 +213,10 @@ extension TodoListViewController: UISearchBarDelegate {
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         
         // Check for empty search
-        if ((searchBar.text == nil) || (searchBar.text! == "" )) {
-            loadItems ()
+        if ((searchBar.text != nil) && (searchBar.text! != "" )) {
+            itemArray = itemArray?.filter("name CONTAINS[cd] %@ ", searchBar.text!).sorted(byKeyPath: "name", ascending: true)
+            self.tableView.reloadData()
         }
-        else {
-            let request : NSFetchRequest<Item> = Item.fetchRequest()
-            
-            let predicate = NSPredicate(format: "name CONTAINS[cd] %@", searchBar.text!)
-            
-            request.predicate = predicate
-            
-            let sortDescriptor = NSSortDescriptor(key: "name", ascending: true)
-            
-            request.sortDescriptors = [sortDescriptor]
-            loadItems(with: request)
-        }
-        
-        
         
         print (searchBar.text!)
     }

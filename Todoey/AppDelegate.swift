@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreData
+import RealmSwift
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -21,6 +22,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         print ("Did finish loading with options")
         //print (NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last! as String)
+        
+        
+        //MARK: Use Realm
+        print ("Realm file:")
+        print(Realm.Configuration.defaultConfiguration.fileURL)
+        
+        
+        do {
+            let realm = try Realm()
+        } catch {
+            print ("Error with realm DB: \(error)")
+        }
+        
+        
+        
         
         return true
     }

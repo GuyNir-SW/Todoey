@@ -65,7 +65,14 @@ class TodoListViewController: SwipeTableViewController {
         //loadItems()
         
         
+        
+        
     
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        navigationController?.navigationBar.barTintColor = UIColor(hexString: selectedCategory?.colorHexCode ?? "666666")
+        title = selectedCategory?.name ?? "Items"
     }
     
     // Mark: Tableview Datasource methods

@@ -10,11 +10,7 @@ import UIKit
 import CoreData
 import RealmSwift
 
-class CategoryViewController: UITableViewController {
-
-    
-    //MARK: Properties
-    let realm = try! Realm()
+class CategoryViewController: SwipeTableViewController {
     
     var categoryArray : Results<Category>?
     
@@ -23,8 +19,6 @@ class CategoryViewController: UITableViewController {
         super.viewDidLoad()
         
         loadCategories()
-        
-
         
     }
 
@@ -41,13 +35,19 @@ class CategoryViewController: UITableViewController {
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCellTag", for: indexPath)
-
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
+        
         if let category = categoryArray?[indexPath.row] {
-         cell.textLabel?.text = category.name
+            cell.textLabel?.text = category.name
+            cell.backgroundColor = UIColor(hexString: category.colorHexCode)
+            cell.textLabel?.textColor = UIColor(contrastingBlackOrWhiteColorOn: cell.backgroundColor!, isFlat:true)
         } else {
             cell.textLabel?.text = ""
         }
+        
+        
+        
+        
         
         return cell
     }
@@ -126,6 +126,7 @@ class CategoryViewController: UITableViewController {
             
             let category = Category()
             category.name = String(helperTextField.text!)
+            category.colorHexCode = UIColor.randomFlat()?.hexValue() ?? "555555"
             
             // Save data on storage
             self.saveNewCat(cat: category)
@@ -169,4 +170,25 @@ class CategoryViewController: UITableViewController {
         }
     }
     
+    
+    // MARK: Handle delete
+    override func updateModelAtDelete(at indexPath: IndexPath) {
+        super.updateModelAtDelete(at: indexPath)
+        
+        do {
+            try self.realm.write {
+                if let category = self.categoryArray?[indexPath.row] {
+                    self.realm.delete(category)
+                    //tableView.reloadData()
+                }
+            }
+        } catch {
+            
+        }
+        
+    }
+    
 }
+
+
+

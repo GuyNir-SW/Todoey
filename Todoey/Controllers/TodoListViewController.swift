@@ -45,11 +45,9 @@ class Item : Codable {
 }
  */
 
-class TodoListViewController: UITableViewController {
+class TodoListViewController: SwipeTableViewController {
 
     //MARK: Properties
-    let realm = try! Realm()
-    
     var itemArray : Results<Item>?
     var selectedCategory : Category? {
         didSet {
@@ -76,10 +74,21 @@ class TodoListViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         if let item = itemArray?[indexPath.row] {
             cell.textLabel?.text = item.name
             cell.accessoryType = item.isSelected ? .checkmark : .none
+            cell.backgroundColor = UIColor(hexString: selectedCategory?.colorHexCode ?? "555555")!.darken(byPercentage: CGFloat(indexPath.row) / CGFloat(itemArray!.count * 3))
+            
+            cell.textLabel?.textColor = UIColor(contrastingBlackOrWhiteColorOn: cell.backgroundColor!, isFlat:true)
+
+            
+            
+            
+            //cell.backgroundColor = UIColor.flatSkyBlue().darken(byPercentage: CGFloat(indexPath.row) / CGFloat(itemArray!.count * 4))
+            
+            print ("Cell " + String(indexPath.row) + " ,Color: " + (cell.backgroundColor?.hexValue())!)
         }
         
         return cell
@@ -200,6 +209,23 @@ class TodoListViewController: UITableViewController {
         catch {
             print ("Error saving item: \(error)")
         }
+    }
+    
+    // MARK: Handle delete
+    override func updateModelAtDelete(at indexPath: IndexPath) {
+        super.updateModelAtDelete(at: indexPath)
+        
+        do {
+            try self.realm.write {
+                if let item = self.itemArray?[indexPath.row] {
+                    self.realm.delete(item)
+                    // tableView.reloadData() - this is crashing us, not sure why
+                }
+            }
+        } catch {
+            
+        }
+        
     }
     
     
